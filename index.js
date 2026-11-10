@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 8080;
 let currentQR = null;
 let botStatus = 'Iniciando conexión...';
 
+// Carpeta donde se guarda la sesión de WhatsApp
 const authFolder = path.join(__dirname, 'auth_info_baileys');
 if (!fs.existsSync(authFolder)) {
   fs.mkdirSync(authFolder, { recursive: true });
@@ -48,6 +49,7 @@ async function connectToWhatsApp() {
       const shouldReconnect =
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
       botStatus = 'Desconectado. Reconectando...';
+      console.log('Conexión cerrada. Reconectando:', shouldReconnect);
       if (shouldReconnect) {
         connectToWhatsApp();
       } else {
@@ -60,25 +62,82 @@ async function connectToWhatsApp() {
     }
   });
 
+  // Manejo de mensajes y comandos
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     const msg = messages[0];
     if (!msg.message || msg.key.fromMe) return;
 
     const from = msg.key.remoteJid;
-    const text =
+    const body =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
       '';
+    const text = body.trim().toLowerCase();
 
-    if (text.toLowerCase() === 'ping') {
-      await sock.sendMessage(from, { text: '¡Pong! 🏓 Bot activo en Railway.' });
+    // Comando: ping
+    if (text === 'ping') {
+      await sock.sendMessage(from, { text: '🏓 ¡Pong! El bot está funcionando al 100%.' });
+    }
+
+    // Comando: .menu o .ayuda
+    else if (text === '.menu' || text === '.ayuda') {
+      const menu = 
+`🤖 *MENÚ PRINCIPAL* 🤖
+
+Comandos disponibles:
+🔹 *.menu* - Ver este menú.
+🔹 *.servicios* - Catálogo de servicios disponibles.
+🔹 *.pago* - Métodos y cuentas de pago.
+🔹 *.soporte* - Contacto con un asesor.
+🔹 *ping* - Verificar estado del bot.
+
+_Escribe cualquiera de los comandos anteriores para recibir respuesta._`;
+      await sock.sendMessage(from, { text: menu });
+    }
+
+    // Comando: .servicios
+    else if (text === '.servicios') {
+      const servicios = 
+`📦 *SERVICIOS DISPONIBLES* 📦
+
+1️⃣ *Streaming y Licencias Digitales*
+   • Cuentas mensuales y anuales garantizadas.
+2️⃣ *Trámites Administrativos Express*
+   • Generación y validación de documentos oficiales.
+3️⃣ *Redes Sociales*
+   • Crecimiento y seguidores para tus plataformas.
+
+_Envía un mensaje indicando el servicio que te interesa para cotizarte._`;
+      await sock.sendMessage(from, { text: servicios });
+    }
+
+    // Comando: .pago
+    else if (text === '.pago') {
+      const pago = 
+`💳 *DATOS DE PAGO* 💳
+
+Aceptamos transferencias electrónicas SPEI y depósitos:
+• *Bancos:* BBVA / BanCoppel / Nu / Banco Azteca / OXXO
+• *Concepto:* Tu nombre o servicio
+
+_Una vez realizada tu transferencia, envía tu comprobante por aquí para activar tu entrega._`;
+      await sock.sendMessage(from, { text: pago });
+    }
+
+    // Comando: .soporte
+    else if (text === '.soporte') {
+      await sock.sendMessage(from, { 
+        text: '👨‍💻 Tu mensaje fue recibido. Un asesor humano te atenderá por este chat en unos momentos.' 
+      });
     }
   });
 }
 
+// Iniciar conexión con WhatsApp
 connectToWhatsApp();
 
+// Servidor web con recarga automática para mostrar el QR
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
