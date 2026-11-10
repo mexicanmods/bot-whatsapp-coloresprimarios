@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 8080;
 let currentQR = null;
 let botStatus = 'Iniciando conexión...';
 
-// Carpeta donde se guarda la sesión de WhatsApp
+// Carpeta de persistencia de credenciales
 const authFolder = path.join(__dirname, 'auth_info_baileys');
 if (!fs.existsSync(authFolder)) {
   fs.mkdirSync(authFolder, { recursive: true });
@@ -62,11 +62,11 @@ async function connectToWhatsApp() {
     }
   });
 
-  // Manejo de mensajes y comandos
+  // Manejo de mensajes y navegación interactiva
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return;
+    if (!msg.message) return;
 
     const from = msg.key.remoteJid;
     const body =
@@ -75,69 +75,130 @@ async function connectToWhatsApp() {
       '';
     const text = body.trim().toLowerCase();
 
-    // Comando: ping
-    if (text === 'ping') {
-      await sock.sendMessage(from, { text: '🏓 ¡Pong! El bot está funcionando al 100%.' });
-    }
+    console.log(`📩 Mensaje entrante de ${from}: "${body}"`);
 
-    // Comando: .menu o .ayuda
-    else if (text === '.menu' || text === '.ayuda') {
+    // 1. Menú principal / Ayuda
+    if (text === '.menu' || text === '.ayuda' || text === 'menu') {
       const menu = 
 `🤖 *MENÚ PRINCIPAL* 🤖
 
-Comandos disponibles:
-🔹 *.menu* - Ver este menú.
-🔹 *.servicios* - Catálogo de servicios disponibles.
-🔹 *.pago* - Métodos y cuentas de pago.
-🔹 *.soporte* - Contacto con un asesor.
-🔹 *ping* - Verificar estado del bot.
+Selecciona una opción escribiendo el número o comando:
 
-_Escribe cualquiera de los comandos anteriores para recibir respuesta._`;
+1️⃣ Escribe *1* o *.streaming* ➔ Plataformas digitales
+2️⃣ Escribe *2* o *.tramites* ➔ Trámites y documentos
+3️⃣ Escribe *3* o *.redes* ➔ Seguidores y redes sociales
+💳 Escribe *.pago* ➔ Cuentas de depósito y SPEI
+👨‍💻 Escribe *.soporte* ➔ Hablar con un asesor
+
+_Envía el número o comando para continuar._`;
       await sock.sendMessage(from, { text: menu });
     }
 
-    // Comando: .servicios
-    else if (text === '.servicios') {
-      const servicios = 
-`📦 *SERVICIOS DISPONIBLES* 📦
+    // 2. Opción 1: Streaming
+    else if (text === '1' || text === '.streaming') {
+      const streaming = 
+`📺 *CUENTAS DE STREAMING & LICENCIAS* 📺
 
-1️⃣ *Streaming y Licencias Digitales*
-   • Cuentas mensuales y anuales garantizadas.
-2️⃣ *Trámites Administrativos Express*
-   • Generación y validación de documentos oficiales.
-3️⃣ *Redes Sociales*
-   • Crecimiento y seguidores para tus plataformas.
+Precios disponibles:
+• Perfiles y cuentas desde $35/mes o $200/año.
+• Netflix, Disney+, Max, Prime Video, etc.
 
-_Envía un mensaje indicando el servicio que te interesa para cotizarte._`;
-      await sock.sendMessage(from, { text: servicios });
+👉 *Para solicitar:*
+Envía: *"Quiero contratar [nombre del servicio]"* o escribe *.pago* para liquidar tu cuenta.`;
+      await sock.sendMessage(from, { text: streaming });
     }
 
-    // Comando: .pago
-    else if (text === '.pago') {
+    // 3. Opción 2 o .tramites: Catálogo y requisitos de documentos
+    else if (text === '2' || text === '.tramites' || text === '.documentos') {
+      const tramites = 
+`📄 *TRÁMITES ADMINISTRATIVOS EXPRESS* 📄
+
+Precios de emisión:
+• *Actas de nacimiento:* $75
+• *CURP certificada:* $10
+• *Constancia RFC / SAT:* $75 - $150
+• *Recibo CFE:* $50
+• *Semanas Cotizadas IMSS:* $75
+• *Vigencia de Derechos IMSS/ISSSTE:* $35
+• *No Derechohabiencia:* $35
+• *Citas Oficiales / Cédulas / Infonavit:* $100
+
+👉 *¿Cómo pedir tu documento?*
+Escribe el nombre del documento o manda:
+*"Requisitos para [documento]"* (ejemplo: *Requisitos acta*).
+O envía directo los datos del titular para iniciar el trámite.`;
+      await sock.sendMessage(from, { text: tramites });
+    }
+
+    // 4. Opción 3: Redes Sociales
+    else if (text === '3' || text === '.redes') {
+      const redes = 
+`🚀 *SEGUIDORES Y REDES SOCIALES* 🚀
+
+Para Facebook, TikTok, Instagram y YouTube:
+• 1 seguidor / interacción: $1
+• Paquete 5,000 seguidores: $250
+• Paquete 10,000 seguidores: $500
+
+👉 *Para ordenar:*
+Envía el enlace público de tu perfil y la cantidad deseada.`;
+      await sock.sendMessage(from, { text: redes });
+    }
+
+    // 5. Respuestas rápidas de requisitos para documentos
+    else if (text.includes('acta')) {
+      await sock.sendMessage(from, { 
+        text: `📑 *REQUISITOS ACTA DE NACIMIENTO ($75)*\n\nPara tramitarla envía:\n• Nombre completo del titular\n• Fecha y lugar de nacimiento\n• CURP (o nombres de los padres)\n\n_Al enviar los datos, realiza tu pago con *.pago* y manda comprobante._` 
+      });
+    }
+
+    else if (text.includes('rfc') || text.includes('sat')) {
+      await sock.sendMessage(from, { 
+        text: `📑 *REQUISITOS RFC / SAT ($75 - $150)*\n\nEnvía tu CURP completa y código postal registrado ante el SAT para emitir tu Constancia de Situación Fiscal.` 
+      });
+    }
+
+    else if (text.includes('curp')) {
+      await sock.sendMessage(from, { 
+        text: `📑 *REQUISITOS CURP ($10)*\n\nEnvía el nombre completo, fecha y estado de nacimiento para descargarla en formato oficial certificado.` 
+      });
+    }
+
+    else if (text.includes('imss') || text.includes('semanas')) {
+      await sock.sendMessage(from, { 
+        text: `📑 *TRÁMITES IMSS*\n\n• Semanas cotizadas: $75\n• Vigencia / No derechohabiencia: $35\n\nEnvía: NSS (Número de Seguridad Social), CURP y correo electrónico.` 
+      });
+    }
+
+    // 6. Pagos
+    else if (text === '.pago' || text === 'pago') {
       const pago = 
-`💳 *DATOS DE PAGO* 💳
+`💳 *MÉTODOS DE PAGO Y TRANSFERENCIA* 💳
 
-Aceptamos transferencias electrónicas SPEI y depósitos:
+Aceptamos transferencias SPEI y depósitos:
 • *Bancos:* BBVA / BanCoppel / Nu / Banco Azteca / OXXO
-• *Concepto:* Tu nombre o servicio
+• *Concepto:* Tu nombre o trámite solicitado
 
-_Una vez realizada tu transferencia, envía tu comprobante por aquí para activar tu entrega._`;
+_Envía la foto de tu comprobante en este chat para validar y procesar tu entrega inmediata._`;
       await sock.sendMessage(from, { text: pago });
     }
 
-    // Comando: .soporte
-    else if (text === '.soporte') {
+    // 7. Soporte
+    else if (text === '.soporte' || text === 'soporte') {
       await sock.sendMessage(from, { 
-        text: '👨‍💻 Tu mensaje fue recibido. Un asesor humano te atenderá por este chat en unos momentos.' 
+        text: '👨‍💻 Un asesor humano revisará tus datos en este chat en breve. Por favor deja tu mensaje.' 
       });
+    }
+
+    // 8. Ping
+    else if (text === 'ping') {
+      await sock.sendMessage(from, { text: '🏓 ¡Pong! El bot está conectado y activo.' });
     }
   });
 }
 
-// Iniciar conexión con WhatsApp
 connectToWhatsApp();
 
-// Servidor web con recarga automática para mostrar el QR
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -148,42 +209,13 @@ app.get('/', (req, res) => {
       <meta http-equiv="refresh" content="5">
       <title>Conectar WhatsApp</title>
       <style>
-        body {
-          font-family: Arial, sans-serif;
-          background: #0b141a;
-          color: #e9edef;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          margin: 0;
-        }
-        .container {
-          background: #111b21;
-          padding: 2.5rem;
-          border-radius: 12px;
-          text-align: center;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-          max-width: 420px;
-          width: 90%;
-        }
+        body { font-family: Arial, sans-serif; background: #0b141a; color: #e9edef; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .container { background: #111b21; padding: 2.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5); max-width: 420px; width: 90%; }
         h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #00a884; }
         p { color: #8696a0; font-size: 0.95rem; margin-bottom: 1.5rem; }
-        .qr-box {
-          background: white;
-          padding: 1rem;
-          border-radius: 8px;
-          display: inline-block;
-          margin-bottom: 1.5rem;
-        }
+        .qr-box { background: white; padding: 1rem; border-radius: 8px; display: inline-block; margin-bottom: 1.5rem; }
         img { width: 250px; height: 250px; display: block; }
-        .status {
-          font-weight: bold;
-          padding: 0.6rem 1rem;
-          border-radius: 6px;
-          background: #202c33;
-          display: inline-block;
-        }
+        .status { font-weight: bold; padding: 0.6rem 1rem; border-radius: 6px; background: #202c33; display: inline-block; }
       </style>
     </head>
     <body>
@@ -191,11 +223,7 @@ app.get('/', (req, res) => {
         <h1>Vincular WhatsApp</h1>
         <p>Abre WhatsApp en tu teléfono > Dispositivos vinculados > Vincular un dispositivo.</p>
         <div class="qr-box">
-          ${
-            currentQR
-              ? `<img src="${currentQR}" alt="Código QR WhatsApp" />`
-              : `<div style="width:250px;height:250px;display:flex;align-items:center;justify-content:center;color:#333;font-size:0.9rem;"><b>${botStatus}</b></div>`
-          }
+          ${currentQR ? `<img src="${currentQR}" alt="Código QR WhatsApp" />` : `<div style="width:250px;height:250px;display:flex;align-items:center;justify-content:center;color:#333;font-size:0.9rem;"><b>${botStatus}</b></div>`}
         </div>
         <div>
           <span class="status">${botStatus}</span>
