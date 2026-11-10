@@ -1,0 +1,16 @@
+{
+  "name": "bot-whatsapp-servicios",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp con Baileys y API de Servicios",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.6.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.5",
+    "pino": "^9.0.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
