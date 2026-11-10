@@ -1,14 +1,15 @@
 {
   "name": "bot-whatsapp-coloresprimarios",
   "version": "1.0.0",
+  "description": "WhatsApp Bot con Baileys y visualizador QR web",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
+    "@whiskeysockets/baileys": "^6.7.9",
     "express": "^4.21.2",
-    "morgan": "^1.10.0"
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4"
   }
 }
